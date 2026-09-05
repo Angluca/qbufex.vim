@@ -1,17 +1,13 @@
-if !has('vim9script') ||  v:version < 900
-    echoe "Needs Vim version 9.0 and above"
-    finish
-endif
-vim9script noclear
+vim9script
 # qbufex.vim -- Vim9版
-# 命令行区域 buffer 快速切换器
-# 默认 <F4> 打开（可用 g:qb_hotkey 覆盖）：
-# - j/k 或方向键移动，J/K 翻5行，g/G 到头/到尾
-# - 数字+动作键对指定 buffer 执行动作（如 3d），数字省略则作用于选中行
-# - 空格/回车跳转，q/<C-c>/<Esc> 退出
-# - z/f 切换  !f/F 强制切换   s/v 水平/垂直 split
-# - e 隐藏式切换(hid b)   d/D 删除(bd/bd!)   w/W/!w 擦除(bw/bw!)
-# - l 切换 listed/unlisted 列表   c 关闭该 buffer 所在窗口
+# 默认 <F4> 打开qbufex (可用 g:qb_hotkey设置快捷键):
+# - j/k 或方向键移动, J/K 翻5行, g/G 到顶/到尾
+# - 数字+动作键对指定 buffer 执行动作(如 3d), 数字省略则作用于选中行
+# - Space/Enter跳转，q/<C-c>/<Esc> 退出
+# - z/f 切换, !f/F 强制切换, s/v 水平/垂直split
+# - e 隐藏式切换(hid b), d/D 删除(bd/bd!), w/W/!w 擦除(bw/bw!)
+# - l 切换 listed/unlisted 列表, c 关闭该 buffer 所在窗口
+
 
 if !exists('g:qb_hotkey') || g:qb_hotkey == ''
   g:qb_hotkey = '<F4>'
@@ -37,22 +33,22 @@ enddef
 
 def SwitchBuf(bno: number, mod: string)
   if bufwinnr(bno) == -1
-    execute $'b{mod} {bno}'
+    exe $'b{mod} {bno}'
   else
-    execute $"{bufwinnr(bno)}winc w"
+    exe $"{bufwinnr(bno)}winc w"
   endif
 enddef
 
 def SplitBuf(bno: number, mod: string)
-  execute $'sb {bno}'
+  exe $'sb {bno}'
 enddef
 
 def VSplitBuf(bno: number, mod: string)
-  execute $'vert sb {bno}'
+  exe $'vert sb {bno}'
 enddef
 
 def HideEdit(bno: number, mod: string)          # e: hid b + 选中行下移
-  execute $'hid b {bno}'
+  exe $'hid b {bno}'
   cursel = (cursel + 1) % blen
 enddef
 
@@ -60,19 +56,19 @@ def DelBuf(bno: number, mod: string)            # d: unlisted 时改为恢复 li
   if unlisted
     setbufvar(bno, '&buflisted', 1)
   else
-    execute $'bd{mod} {bno}'
+    exe $'bd{mod} {bno}'
   endif
 enddef
 
 def WipeBuf(bno: number, mod: string)           # w
-  execute $'bw{mod} {bno}'
+  exe $'bw{mod} {bno}'
 enddef
 
 def CloseWin(bno: number, mod: string)          # c
   var wn = bufwinnr(bno)
   if wn != -1
-    execute $"{wn}winc w"
-    execute 'close'
+    exe $"{wn}winc w"
+    exe 'close'
   endif
 enddef
 
@@ -193,7 +189,10 @@ def UpdateBuf(cmd: string): bool
       bufidx = cursel
     endif
     var action = matchstr(cmd, '!\?\a\?$')
-    if action == '' || action == '!'
+    #echowindow $"test: {cmd}--{action}"
+    if action == ''
+      action ..= 'f'
+    elseif action == '!'
       action ..= 'z'
     endif
     if bufidx >= 0 && bufidx < blen && has_key(action2func, action)
@@ -207,7 +206,7 @@ def UpdateBuf(cmd: string): bool
         endif
       catch
         #echowindow $"test: {bufnum}-{mod}--{action}"
-        if action[-1 :] == 'f' && GetStarBuf() != bufnr()
+        if action[-1 :] == 'f' # && GetStarBuf() != bufnr()
           Rebuild()
         elseif action[-1 :] != 'z'
           inputsave()
@@ -238,18 +237,18 @@ def Init(onStart: number)
 
     for key in klist
       if key == 'q'
-        execute $"cnoremap {key} :call <SID>Init(0)<cr>:echo ''<cr>"
+        exe $"cnoremap {key} :call <SID>Init(0)<cr>:echo ''<cr>"
       else
-        execute $"cnoremap {key} {key}<cr>:call <SID>SBRun()<cr>"
+        exe $"cnoremap {key} {key}<cr>:call <SID>SBRun()<cr>"
       endif
     endfor
     cmap <up> k
     cmap <down> j
     cnoremap <space> <cr>
-    execute "cnoremap <c-c> :call <SID>Init(0)<cr>:echo ''<cr>"
+    exe "cnoremap <c-c> :call <SID>Init(0)<cr>:echo ''<cr>"
 
     Rebuild()
-    cursel = match(buflist, '^\d*\*')   # 初始选中当前 buffer
+    cursel = match(buflist, '^\d*\*') - 1   # 初始选中当前buf-1=不同buf
     SetCmdh(blen + 1)
   else
     var bufidx = GetStarBuf()
@@ -258,7 +257,7 @@ def Init(onStart: number)
     endif
     SetCmdh(cmdh)
     for key in klist
-      execute $'cunmap {key}'
+      exe $'cunmap {key}'
     endfor
     cunmap <up>
     cunmap <down>
@@ -267,6 +266,5 @@ def Init(onStart: number)
   endif
 enddef
 
-execute $"nnoremap <unique> {g:qb_hotkey} :call <SID>Init(1)<CR>:call <SID>SBRun()<CR>"
-
+exe $"nnoremap <unique> {g:qb_hotkey} :call <SID>Init(1)<CR>:call <SID>SBRun()<CR>"
 
